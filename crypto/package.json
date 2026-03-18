@@ -1,0 +1,10 @@
+{
+  "name": "crypto-terminal",
+  "version": "2.0.0",
+  "description": "实时行情 + 模拟交易终端 - 零依赖 Node.js",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": { "node": ">=16.0.0" }
+}

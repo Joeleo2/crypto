@@ -1,0 +1,66 @@
+{
+  "balances": {
+    "USDT": 59129.17,
+    "BTC": 0.3457534902086069,
+    "USDT_FROZEN": 0,
+    "DOT": 10000
+  },
+  "orders": [
+    {
+      "tradeId": "SIM17738407627451WQ1",
+      "orderId": "SIM1773840762745CMEA",
+      "symbol": "BTCUSDT",
+      "side": "BUY",
+      "type": "MARKET",
+      "price": 72305.85,
+      "qty": 0.3457534902086069,
+      "fee": 25,
+      "feeCoin": "USDT",
+      "time": 1773840762745,
+      "status": "FILLED"
+    },
+    {
+      "orderId": "SIM1773842048626BHXA",
+      "symbol": "DOTUSDT",
+      "side": "BUY",
+      "type": "LIMIT",
+      "qty": 10000,
+      "price": 1.583,
+      "status": "FILLED",
+      "time": 1773842048626,
+      "execQty": 10000,
+      "execPrice": 1.583,
+      "fillTime": 1773842081309
+    }
+  ],
+  "openOrders": [],
+  "trades": [
+    {
+      "tradeId": "SIM17738407627451WQ1",
+      "orderId": "SIM1773840762745CMEA",
+      "symbol": "BTCUSDT",
+      "side": "BUY",
+      "type": "MARKET",
+      "price": 72305.85,
+      "qty": 0.3457534902086069,
+      "fee": 25,
+      "feeCoin": "USDT",
+      "time": 1773840762745,
+      "status": "FILLED"
+    },
+    {
+      "tradeId": "SIM17738420813095VHO",
+      "orderId": "SIM1773842048626BHXA",
+      "symbol": "DOTUSDT",
+      "side": "BUY",
+      "type": "LIMIT",
+      "price": 1.583,
+      "qty": 10000,
+      "fee": 15.83,
+      "feeCoin": "USDT",
+      "time": 1773842081309,
+      "status": "FILLED"
+    }
+  ],
+  "createdAt": 1773840721740
+}
