@@ -1,9 +1,10 @@
 {
   "balances": {
-    "USDT": 59129.17,
+    "USDT": 29099.170000000002,
     "BTC": 0.3457534902086069,
     "USDT_FROZEN": 0,
-    "DOT": 10000
+    "DOT": 10000,
+    "ETH": 15.090467351773885
   },
   "orders": [
     {
@@ -31,6 +32,19 @@
       "execQty": 10000,
       "execPrice": 1.583,
       "fillTime": 1773842081309
+    },
+    {
+      "tradeId": "SIM1774792583553M507",
+      "orderId": "SIM1774792583553YGHE",
+      "symbol": "ETHUSDT",
+      "side": "BUY",
+      "type": "MARKET",
+      "price": 1988.01,
+      "qty": 15.090467351773885,
+      "fee": 30,
+      "feeCoin": "USDT",
+      "time": 1774792583553,
+      "status": "FILLED"
     }
   ],
   "openOrders": [],
@@ -59,6 +73,19 @@
       "fee": 15.83,
       "feeCoin": "USDT",
       "time": 1773842081309,
+      "status": "FILLED"
+    },
+    {
+      "tradeId": "SIM1774792583553M507",
+      "orderId": "SIM1774792583553YGHE",
+      "symbol": "ETHUSDT",
+      "side": "BUY",
+      "type": "MARKET",
+      "price": 1988.01,
+      "qty": 15.090467351773885,
+      "fee": 30,
+      "feeCoin": "USDT",
+      "time": 1774792583553,
       "status": "FILLED"
     }
   ],

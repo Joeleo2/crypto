@@ -1,61 +1,51 @@
-# CRYPTO TERMINAL
+# CRYPTO TERMINAL v2.0
 
-实时加密货币行情终端，连接币安 API，**零 npm 依赖**，纯 Node.js 内置模块实现。
-
-## 功能
-
-- 📡 实时 WebSocket 行情（15 个主流交易对）
-- 📊 K 线图（1m/5m/15m/1h/4h/1d）+ MA7/MA25 均线
-- 📋 实时买卖盘口深度（20 档）
-- 💹 实时成交记录流
-- 🔄 自动节点切换（api.binance.vision / api1~3.binance.com）
-- ⚡ 零依赖：仅用 Node.js 内置模块（http/https/crypto/fs）
+实时行情 + 模拟交易终端，零 npm 依赖，纯 Node.js 内置模块。
 
 ## 快速启动
 
 ```bash
-# 1. 进入目录
-cd crypto-terminal
-
-# 2. 启动服务（无需 npm install！）
 node server.js
-
-# 3. 浏览器打开
-# http://localhost:3000
+# 浏览器打开 http://localhost:3000
 ```
 
-## 系统要求
+## 部署 & 更新工作流
 
-- Node.js >= 16
-- 能访问 api.binance.vision 的网络（国内可用的官方镜像）
+### 首次部署（解压方式）
+1. 将 `crypto-terminal.zip` 和 `deploy.bat` 放同一目录
+2. 双击 `deploy.bat` → 自动解压到 `D:\workspace\币安交易` 并启动
 
-## 架构
+### 绑定 GitHub（一次性）
+1. 在 [github.com/new](https://github.com/new) 创建**空仓库**（不要加 README）
+2. 双击 `github-init.bat` → 按提示输入用户名和仓库名
+3. 完成后 `D:\workspace\币安交易` 就是一个 Git 仓库
 
-```
-浏览器
-  │  WebSocket (/ws)     ← 实时推送 ticker/depth/trade
-  │  HTTP GET (/api/*)   ← 历史 K线
-  ↓
-server.js (Node.js)
-  │  BinanceWS (手写 RFC6455 客户端)
-  │    ├── miniTicker 全市场行情流
-  │    ├── depth20 盘口深度流
-  │    └── aggTrade 成交记录流
-  │  HTTPS REST
-  │    └── /api/v3/klines 历史K线
-  ↓
-Binance API
-  ├── data-stream.binance.vision (WS 首选)
-  └── api.binance.vision (REST 首选)
-```
+### 绑定后的更新流程
 
-## API 路由
+| 场景 | 操作 |
+|------|------|
+| Claude 生成了新版本 | Claude 直接 `git push` 推送到你的仓库 |
+| 你本地想同步最新版 | 双击 `deploy.bat` → 自动 `git pull` + 重启 |
+| 你本地改了代码想保存 | 双击 `git-push.bat` → 输入说明，自动推送 |
+
+## 脚本说明
+
+| 脚本 | 用途 |
+|------|------|
+| `deploy.bat` | 智能部署：有 Git 仓库就 pull，没有就解压 zip |
+| `github-init.bat` | 首次绑定 GitHub（只需运行一次） |
+| `git-push.bat` | 推送本地修改到 GitHub |
+| `start.bat` | 仅启动服务（不更新代码） |
+| `stop.bat` | 停止服务 |
+
+## API
 
 | 路径 | 说明 |
 |------|------|
 | `GET /` | 前端页面 |
 | `WS /ws` | 实时数据推送 |
-| `GET /api/klines?symbol=BTCUSDT&interval=1m&limit=200` | K线数据 |
-| `GET /api/subscribe?symbol=ETHUSDT` | 订阅新品种深度+成交 |
-| `GET /api/tickers` | 当前所有 ticker 快照 |
-| `GET /api/status` | 服务状态 |
+| `GET /api/klines` | K线数据 |
+| `POST /api/order` | 下单 |
+| `DELETE /api/order` | 撤单 |
+| `GET /api/account` | 账户信息 |
+| `POST /api/account/reset` | 重置账户 |
