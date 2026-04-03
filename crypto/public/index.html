@@ -841,6 +841,15 @@ function showModal(){
   if(currentMode==='live'){document.getElementById('disableBtn').style.display='';document.getElementById('enableBtn').style.display='none';}
   else{document.getElementById('disableBtn').style.display='none';document.getElementById('enableBtn').style.display='';}
   goStep(1);
+  // 自动读取本地保存的实盘配置并填充（仅本地 UI 使用）
+  fetch('/api/live/config').then(r=>r.json()).then(j=>{
+    if(j && j.ok){
+      if(j.apiKey) document.getElementById('inputKey').value = j.apiKey;
+      if(j.apiSecret) document.getElementById('inputSecret').value = j.apiSecret;
+      liveConfigured = !!j.hasKey;
+      document.getElementById('clearKeyBtn').style.display = j.hasKey ? '' : 'none';
+    }
+  }).catch(()=>{});
 }
 function hideModal(){
   document.getElementById('liveModal').classList.add('hidden');

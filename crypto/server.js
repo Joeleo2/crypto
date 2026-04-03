@@ -809,6 +809,13 @@ async function handleAPI(req,res,pn){
     } else if(pn==='/api/live/proxy'&&req.method==='GET'){
       return ok({proxy:liveConfig.proxy||''});
 
+    // ── 实盘 Key 配置（读取） ──
+    } else if(pn==='/api/live/config'&&req.method==='GET'){
+      // 返回已保存的 apiKey 与解密后的 secret（仅在本地 UI 使用）
+      try {
+        return ok({ apiKey: getApiKey(), apiSecret: getApiSecret(), hasKey: !!getApiKey() });
+      } catch(e) { return ok({ apiKey:'', apiSecret:'', hasKey:false }); }
+
     } else if(pn==='/api/live/proxy'&&req.method==='POST'){
       const body=await readBody(req);
       const proxy=(body.proxy||'').trim();
