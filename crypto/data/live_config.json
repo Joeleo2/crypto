@@ -1,0 +1,9 @@
+{
+  "apiKey": "aqFjcvPDEa8S8bjNci4DonNyNNzbtB161kKDLxGBAT2cwu6HkRw40Grdn3u1pz7J",
+  "apiSecret": "J5svCrABpLdcq0pm0f8yb9fKXNqZ6V9J8OyqLU4xS7ydsQWvkvzaAkyDIwVc1zQy",
+  "enabled": false,
+  "testnet": false,
+  "proxy": "http://127.0.0.1:7890",
+  "encSecret": "30b8d8e54bed58e86b29c27e1356c795:97966493ab71a87cff957f64e6eca0d771ae3af3d6c3c6c3f9bcc5e3501d80194cd59752ccaf0366fa1e62784af5b2045e3e31c653315836c3d6a1f9acd318784b60913e32909679a9037c854cecdbcc",
+  "hasKey": true
+}

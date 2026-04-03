@@ -1,7 +1,7 @@
 {
   "balances": {
-    "USDT": 29099.170000000002,
-    "BTC": 0.3457534902086069,
+    "USDT": 29089.160000000003,
+    "BTC": 0.34590345870772365,
     "USDT_FROZEN": 0,
     "DOT": 10000,
     "ETH": 15.090467351773885
@@ -45,6 +45,30 @@
       "feeCoin": "USDT",
       "time": 1774792583553,
       "status": "FILLED"
+    },
+    {
+      "tradeId": "SIM1775222823018OQIV",
+      "orderId": "SIM1775222823018F277",
+      "symbol": "BTCUSDT",
+      "side": "BUY",
+      "type": "MARKET",
+      "price": 66680.67,
+      "qty": 0.00014996849911676053,
+      "fee": 0.01,
+      "feeCoin": "USDT",
+      "time": 1775222823018,
+      "status": "FILLED"
+    },
+    {
+      "orderId": "SIM1775223076337T1MS",
+      "symbol": "BTCUSDT",
+      "side": "BUY",
+      "type": "LIMIT",
+      "qty": 0.0001,
+      "price": 60000,
+      "status": "CANCELED",
+      "time": 1775223076337,
+      "execQty": 0
     }
   ],
   "openOrders": [],
@@ -86,6 +110,19 @@
       "fee": 30,
       "feeCoin": "USDT",
       "time": 1774792583553,
+      "status": "FILLED"
+    },
+    {
+      "tradeId": "SIM1775222823018OQIV",
+      "orderId": "SIM1775222823018F277",
+      "symbol": "BTCUSDT",
+      "side": "BUY",
+      "type": "MARKET",
+      "price": 66680.67,
+      "qty": 0.00014996849911676053,
+      "fee": 0.01,
+      "feeCoin": "USDT",
+      "time": 1775222823018,
       "status": "FILLED"
     }
   ],

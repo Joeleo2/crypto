@@ -41,14 +41,6 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
 .cfg-btn{background:transparent;border:1px solid var(--border2);color:var(--dim);
   border-radius:3px;padding:3px 8px;font-size:10px;letter-spacing:1px;cursor:pointer;font-family:var(--mono);}
 .cfg-btn:hover{border-color:var(--green);color:var(--green);}
-/* 合约交易快捷按钮（更醒目） */
-.futures-btn{background:linear-gradient(90deg,#00c853,#00e676);color:#041012;border:none;padding:6px 10px;margin-left:8px;font-weight:800;box-shadow:0 6px 20px rgba(0,230,118,.14);border-radius:4px}
-.futures-btn:hover{filter:brightness(1.05);transform:translateY(-1px)}
-/* 右侧固定浮动合约入口 */
-.futures-float{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:9999;
-  background:linear-gradient(90deg,#00c853,#00e676);color:#041012;padding:12px 14px;border-radius:8px;
-  box-shadow:0 12px 30px rgba(0,230,118,.14);font-weight:800;border:none;cursor:pointer;text-decoration:none}
-.futures-float:hover{filter:brightness(1.05);transform:translateY(-50%) translateY(-2px)}
 
 .marquee{height:26px;background:var(--bg1);border-bottom:1px solid var(--border);overflow:hidden;flex-shrink:0;}
 .m-track{display:flex;animation:scroll 55s linear infinite;width:max-content;}
@@ -319,8 +311,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
       <span class="mode-dot"></span><span id="modeText">模拟交易</span>
     </button>
     <button class="cfg-btn" onclick="showModal()">⚙ 实盘配置</button>
-    <button class="cfg-btn futures-btn" onclick="location.href='/futures.html'">合约交易</button>
-    <div class="badge" id="marketBadge" onclick="toggleMarketType()" title="点击切换 SPOT / FUTURES">BINANCE · SPOT</div>
+    <div class="badge">BINANCE · SPOT</div>
     <div class="clock" id="clock">--:--:--</div>
   </div>
 </div>
@@ -432,32 +423,6 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
           </div>
         </div>
         <div id="amtPreview" style="font-size:10px;color:var(--dim);min-height:14px;margin-bottom:4px;"></div>
-        <div id="futuresOptions" style="display:none;margin-bottom:8px;">
-          <div class="form-row">
-            <div class="form-label">杠杆 (Leverage)</div>
-            <select class="form-input" id="leverageSelect">
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="5">5</option>
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="50">50</option>
-            </select>
-          </div>
-          <div class="form-row">
-            <div class="form-label">保证金模式 (Margin Type)</div>
-            <select class="form-input" id="marginTypeSelect">
-              <option value="CROSS">CROSS</option>
-              <option value="ISOLATED">ISOLATED</option>
-            </select>
-          </div>
-          <div class="form-row">
-            <label style="display:flex;align-items:center;gap:8px;">
-              <input type="checkbox" id="reduceOnlyCheckbox"> <span class="form-label" style="margin:0">Reduce Only (仅减仓)</span>
-            </label>
-          </div>
-        </div>
         <button class="submit-btn buy" id="submitBtn" onclick="submitOrder()">买 入 BTC</button>
         <div class="order-msg" id="orderMsg"></div>
       </div>
@@ -662,24 +627,6 @@ function updateModeUI(){
   tag.textContent=(live?'● 实盘交易':'● 模拟交易');
   tag.className=live?'up':'neu';
   document.getElementById('stWarn').textContent=live?'⚠ 实盘模式 · 真实资金 · 谨慎操作':'⚠ 投资有风险，交易需谨慎';
-  // 更新顶部市场类型标签
-  const mb2 = document.getElementById('marketBadge');
-  if(mb2){
-    if(currentMode==='futures') mb2.textContent='BINANCE · FUTURES';
-    else mb2.textContent='BINANCE · SPOT';
-  }
-}
-
-// 切换市场类型：SPOT <-> FUTURES（仅当已配置实盘 Key）
-async function toggleMarketType(){
-  if(!liveConfigured){showOrderMsg('请先配置 API Key 并测试连接','err');return;}
-  const target = (currentMode==='futures') ? 'live' : 'futures';
-  try{
-    const r=await fetch('/api/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:target})});
-    const j=await r.json();
-    if(j.ok){currentMode=j.mode;updateModeUI();fetchAccount();showOrderMsg('✓ 切换成功','ok');}
-    else showOrderMsg('✗ '+j.error,'err');
-  }catch(e){showOrderMsg('✗ '+e.message,'err');}
 }
 
 // ── 账户 ──
@@ -743,14 +690,7 @@ function setSide(s){orderSide=s;document.getElementById('sideB').classList.toggl
 function setType(t){orderType=t;document.getElementById('typeM').classList.toggle('on',t==='MARKET');document.getElementById('typeL').classList.toggle('on',t==='LIMIT');document.getElementById('priceRow').style.display=t==='LIMIT'?'':'none';updateOrderUI();}
 function updateOrderUI(){
   const b=base(activeSym),buy=orderSide==='BUY';
-  // 如果是合约模式，数量表示合约张数（contracts），市价买入也以数量为合约数量
-  if(currentMode==='futures'){
-    document.getElementById('qtyLabel').textContent=`数量 (合约)`;
-    document.getElementById('futuresOptions').style.display='';
-  } else {
-    document.getElementById('qtyLabel').textContent=orderType==='MARKET'?(buy?'金额 (USDT)':`数量 (${b})`):`数量 (${b})`;
-    document.getElementById('futuresOptions').style.display='none';
-  }
+  document.getElementById('qtyLabel').textContent=orderType==='MARKET'?(buy?'金额 (USDT)':`数量 (${b})`):`数量 (${b})`;
   document.getElementById('submitBtn').textContent=(buy?'买 入 ':'卖 出 ')+b;
   document.getElementById('acctSymbol').textContent=activeSym.replace('USDT','/USDT');
   updatePreview();
@@ -769,11 +709,7 @@ document.getElementById('qtyInput').addEventListener('input',updatePreview);
 document.getElementById('priceInput').addEventListener('input',updatePreview);
 function setPct(pct){
   const price=tickers[activeSym]?.price||0;if(!price)return;
-  if(currentMode==='futures'){
-    // 简化：按可用 USDT 计算合约数量（approx = (USDT*pct/100)/price）
-    const u = currentMode==='live'?(account.balances?.USDT?.free||0):(account.balances?.USDT||0);
-    document.getElementById('qtyInput').value = ((u*pct/100)/price).toFixed(6);
-  } else if(orderSide==='BUY'){
+  if(orderSide==='BUY'){
     const u=currentMode==='live'?(account.balances?.USDT?.free||0):(account.balances?.USDT||0);
     document.getElementById('qtyInput').value=orderType==='MARKET'?(u*pct/100).toFixed(2):((u*pct/100)/price).toFixed(6);
   } else {
@@ -794,16 +730,6 @@ async function submitOrder(){
   if(orderType==='MARKET'){if(orderSide==='BUY'){body.quoteQty=qty;body.quoteOrderQty=qty;}else body.qty=qty;}
   else{body.qty=qty;body.price=price;}
   try{
-    // 如果是合约模式，附带杠杆和保证金模式、reduceOnly 参数
-    if(currentMode==='futures'){
-      const lev = parseInt(document.getElementById('leverageSelect').value)||null;
-      const mt = document.getElementById('marginTypeSelect').value||null;
-      const ro = !!document.getElementById('reduceOnlyCheckbox').checked;
-      if(lev) body.leverage = lev;
-      if(mt) body.marginType = mt;
-      body.reduceOnly = ro;
-      body.qty = +body.qty;
-    }
     const r=await fetch('/api/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const j=await r.json();
     if(j.ok){
@@ -1131,7 +1057,5 @@ document.getElementById('liveModal').addEventListener('click',function(e){if(e.t
 
 connectWS();buildCoinList();loadKlines();fetchAccount();setInterval(fetchAccount,30000);
 </script>
-<!-- 固定浮动合约入口 -->
-<a class="futures-float" href="/futures.html">合约交易</a>
 </body>
 </html>

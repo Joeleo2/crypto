@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>合约交易 · CRYPTEX</title>
+<style>
+:root{--bg:#05080b;--panel:#0e1620;--accent:#00e676;--red:#ff3d57;--dim:#9fb7a8;--mono:JetBrains Mono,monospace}
+body{margin:0;font-family:var(--mono);background:var(--bg);color:#cfe6da}
+.container{max-width:980px;margin:18px auto;padding:18px;background:var(--panel);border-radius:8px}
+.h{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.h b{font-size:16px;color:var(--accent)}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card{background:rgba(255,255,255,0.02);padding:12px;border-radius:6px}
+.row{margin-bottom:8px}
+.label{font-size:12px;color:var(--dim);margin-bottom:4px}
+.input,select{width:100%;padding:8px;border-radius:4px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+.btn{padding:10px 14px;border-radius:6px;border:none;cursor:pointer;font-weight:700}
+.btn-green{background:linear-gradient(90deg,var(--accent),#00bfa5);color:#041012}
+.btn-red{background:linear-gradient(90deg,var(--red),#d32f2f);color:#fff}
+.list{max-height:320px;overflow:auto;margin-top:8px}
+.item{padding:8px;border-bottom:1px solid rgba(255,255,255,0.02);display:flex;justify-content:space-between}
+.small{font-size:12px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="h"><b>合约交易 (FUTURES)</b><div class="small" id="status">连接: 未连接</div></div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+    <button class="btn btn-green" id="btnMode">切换到合约模式</button>
+    <button class="btn" id="btnRefresh">刷新账户</button>
+  </div>
+
+  <div class="form">
+    <div class="card">
+      <div class="row"><div class="label">交易对</div><select id="symbol" class="input">
+        <option>BTCUSDT</option><option>ETHUSDT</option><option>BNBUSDT</option>
+      </select></div>
+      <div class="row"><div class="label">方向</div><select id="side" class="input"><option>BUY</option><option>SELL</option></select></div>
+      <div class="row"><div class="label">类型</div><select id="type" class="input"><option>MARKET</option><option>LIMIT</option></select></div>
+      <div class="row"><div class="label">数量 (contracts)</div><input id="qty" class="input" type="number" step="any" placeholder="例如: 0.001"></div>
+      <div class="row"><div class="label">价格 (仅限 LIMIT)</div><input id="price" class="input" type="number" step="any" placeholder="价格"></div>
+      <div class="row"><div class="label">买入金额 (仅市价买入，可选 quoteQty)</div><input id="quoteQty" class="input" type="number" step="any" placeholder="以 USDT 计，仅市价买入使用"></div>
+      <div class="row"><div class="label">触发类型 (触发单)</div>
+        <select id="triggerType" class="input">
+          <option value="NONE">无（普通下单）</option>
+          <option value="STOP_MARKET">触发市价 (STOP_MARKET)</option>
+          <option value="TAKE_PROFIT_MARKET">止盈市价 (TP_MARKET)</option>
+          <option value="STOP">触发限价 (STOP)</option>
+          <option value="TAKE_PROFIT">止盈限价 (TP)</option>
+        </select>
+      </div>
+      <div class="row"><div class="label">触发价 / 止损价 (stopPrice)</div><input id="stopPrice" class="input" type="number" step="any" placeholder="触发价，例如 67000"></div>
+      <div class="row"><div class="label">触发依据 (workingType)</div>
+        <select id="workingType" class="input"><option value="">自动</option><option value="MARK_PRICE">MARK_PRICE</option><option value="CONTRACT_PRICE">CONTRACT_PRICE</option></select>
+      </div>
+      <div class="row"><div class="label">仓位侧 (positionSide)</div>
+        <select id="positionSide" class="input"><option value="BOTH">BOTH</option><option value="LONG">LONG</option><option value="SHORT">SHORT</option></select>
+      </div>
+      <div class="row"><div class="label">杠杆(Leverage)</div><select id="leverage" class="input"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option><option>50</option></select></div>
+      <div class="row"><div class="label">保证金模式</div><select id="marginType" class="input"><option>CROSS</option><option>ISOLATED</option></select></div>
+      <div class="row"><label class="small"><input type="checkbox" id="reduceOnly"> Reduce Only</label></div>
+      <div style="display:flex;gap:8px"><button class="btn btn-green" id="btnSubmit">下单</button><button class="btn btn-red" id="btnCancelSel">撤单 (选中)</button></div>
+      <div id="orderMsg" class="small" style="margin-top:8px"></div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center"><div class="small">账户 / 持仓</div><button id="btnAcctRefresh" class="btn">刷新</button></div>
+        <div class="list" id="acctArea">加载中...</div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center"><div class="small">挂单</div><div class="small">(点击撤单按钮)</div></div>
+        <div class="list" id="openOrdersArea">暂无挂单</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:12px" class="card">
+    <div class="small">成交记录</div>
+    <div class="list" id="tradesArea">暂无成交</div>
+  </div>
+</div>
+
+<script>
+const wsProto = location.protocol==='https:'?'wss':'ws';
+let ws=null; function connectWS(){ws=new WebSocket(wsProto+'://'+location.host+'/ws');ws.onopen=()=>{setStatus('已连接');};ws.onclose=()=>setStatus('断开，重连中...');ws.onmessage=e=>{try{const m=JSON.parse(e.data);handleMsg(m);}catch{} }}
+function setStatus(s){document.getElementById('status').textContent='连接: '+s}
+function handleMsg(m){if(m.type==='account_snapshot'||m.type==='account_update'||m.type==='account_reset'){renderAccount(m);} if(m.type==='order_filled'){appendTrade(m.trade);} }
+
+async function api(path,method='GET',body){const opts={method,headers:{'Content-Type':'application/json'}}; if(body)opts.body=JSON.stringify(body); const r=await fetch(path,opts); return r.json();}
+
+async function switchToFutures(){ try{const r=await api('/api/mode','POST',{mode:'futures'}); if(r.ok){setStatus('已切换到合约模式');fetchAccount();} else alert(r.error||'切换失败'); }catch(e){alert(e.message);} }
+
+document.getElementById('btnMode').onclick=async ()=>{await switchToFutures();};
+document.getElementById('btnRefresh').onclick=()=>fetchAccount();
+document.getElementById('btnAcctRefresh').onclick=()=>fetchAccount();
+
+document.getElementById('btnSubmit').onclick=async ()=>{
+  const sym=document.getElementById('symbol').value; const side=document.getElementById('side').value; const type=document.getElementById('type').value;
+  const qty=document.getElementById('qty').value; const price=document.getElementById('price').value; const quoteQty=document.getElementById('quoteQty').value;
+  const leverage=document.getElementById('leverage').value; const marginType=document.getElementById('marginType').value; const reduceOnly=document.getElementById('reduceOnly').checked;
+  const body={symbol:sym,side,type};
+  if(type==='MARKET'){ if(side==='BUY'){ if(quoteQty) body.quoteQty=quoteQty; else body.quoteQty=quoteQty||undefined; } else body.qty=qty; }
+  else { body.qty=qty; body.price=price; }
+  body.leverage=Number(leverage); body.marginType=marginType; body.reduceOnly=reduceOnly;
+  // 基本校验
+  const vmsg = validateOrder(body);
+  const msgEl=document.getElementById('orderMsg');
+  if(vmsg){ msgEl.textContent = '校验失败: '+vmsg; return; }
+  // 触发单支持：若用户选择了触发类型，则将 type 覆盖为触发类型并附带 stopPrice / workingType / positionSide
+  const trig = document.getElementById('triggerType').value;
+  const sp = document.getElementById('stopPrice').value;
+  const wt = document.getElementById('workingType').value;
+  const ps = document.getElementById('positionSide').value;
+  if(trig && trig!=='NONE'){
+    body.type = trig;
+    if(sp) body.stopPrice = sp;
+    if(wt) body.workingType = wt;
+    if(ps) body.positionSide = ps;
+  }
+  const msgEl=document.getElementById('orderMsg'); msgEl.textContent='下单中...';
+  try{ const r=await api('/api/order','POST',body); if(r.ok){ msgEl.textContent='下单成功'; fetchAccount(); } else { msgEl.textContent='下单失败: '+r.error; } }catch(e){ msgEl.textContent='下单异常: '+e.message; }
+}
+
+function validateOrder(body){
+  if(!body.symbol) return '缺少 symbol';
+  const t = String(body.type||'').toUpperCase();
+  if(t.includes('MARKET')){
+    if(body.side==='BUY'){
+      const q = parseFloat(body.quoteQty||0);
+      if(!(q>0)) return '市价买入需填写有效的 quoteQty 或金额';
+    } else {
+      const q = parseFloat(body.qty||0);
+      if(!(q>0)) return '市价卖出需填写有效的数量 qty';
+    }
+  } else if(t==='LIMIT' || t==='STOP' || t==='TAKE_PROFIT'){
+    const q = parseFloat(body.qty||0); const p = parseFloat(body.price||0);
+    if(!(q>0)) return '限价需填写有效数量 qty';
+    if(!(p>0)) return '限价需填写有效价格 price';
+  }
+  // 若为触发单，要求 stopPrice
+  if(['STOP_MARKET','STOP','TAKE_PROFIT_MARKET','TAKE_PROFIT'].includes(t)){
+    const sp = parseFloat(body.stopPrice||0);
+    if(!(sp>0)) return '触发单需填写 stopPrice';
+  }
+  return null;
+}
+
+document.getElementById('btnCancelSel').onclick=async ()=>{
+  const id=prompt('输入要撤销的 orderId:'); if(!id) return; const sym=document.getElementById('symbol').value; try{const r=await api('/api/order','DELETE',{orderId:id,symbol:sym}); if(r.ok){alert('撤单成功'); fetchAccount();}else alert('撤单失败:'+r.error);}catch(e){alert(e.message);} }
+
+function renderAccount(m){ const area=document.getElementById('acctArea'); const open=document.getElementById('openOrdersArea'); const trades=document.getElementById('tradesArea');
+  const bal = m.balances||m.balances||{};
+  let html=''; if(m.positions&&m.positions.length){ m.positions.forEach(p=>{ html+=`<div class="item"><div><b>${p.symbol}</b><div class="small">持仓: ${p.positionAmt||p.qty}</div></div><div class="small">浮动PnL:${p.unrealizedPnL||0}</div></div>`; }); } else html='<div class="small">暂无持仓</div>';
+  area.innerHTML=html;
+  if(m.openOrders&&m.openOrders.length){ open.innerHTML = m.openOrders.map(o=>`<div class="item"><div><b>${o.symbol}</b><div class="small">${o.side} ${o.origQty||o.qty} @ ${o.price||o.avgPrice||''}</div></div><div><button onclick="cancel('${o.orderId}','${o.symbol}')" class="btn">撤单</button></div></div>`).join(''); } else open.innerHTML='<div class="small">暂无挂单</div>';
+  if(m.trades&&m.trades.length){ trades.innerHTML = m.trades.slice(-100).reverse().map(t=>`<div class="item"><div>${t.symbol} ${t.side}</div><div class="small">${t.qty||t.executedQty} @ ${t.price||t.avgPrice} · ${new Date(t.time||t.updateTime||Date.now()).toLocaleString()}</div></div>`).join(''); } else trades.innerHTML='<div class="small">暂无成交</div>';
+}
+
+async function cancel(orderId,symbol){ if(!confirm('撤单: '+orderId))return; try{const r=await api('/api/order','DELETE',{orderId,symbol}); if(r.ok){alert('撤单成功');fetchAccount();}else alert('撤单失败:'+r.error);}catch(e){alert(e.message);} }
+
+async function fetchAccount(){ try{ const r=await api('/api/account'); if(r.ok){ renderAccount(r); } else { console.warn('account error',r); } }catch(e){ console.warn(e); } }
+
+connectWS(); fetchAccount();
+</script>
+</body>
+</html>

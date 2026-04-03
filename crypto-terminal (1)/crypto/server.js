@@ -32,9 +32,6 @@ const QUOTE_REST = ['api.binance.vision','api1.binance.com','api2.binance.com','
 const QUOTE_WS   = ['data-stream.binance.vision','stream.binance.com'];
 const TRADE_REST = ['api.binance.com','api1.binance.com','api2.binance.com','api3.binance.com'];
 
-// 合约节点（与现货使用相同域名列表）
-const FUTURE_REST = [...TRADE_REST];
-
 const INITIAL_USDT = 100000;
 const TAKER_FEE    = 0.001;
 const MAKER_FEE    = 0.001;
@@ -139,18 +136,7 @@ function loadLiveConfig() {
     fs.mkdirSync(DATA_DIR, { recursive: true });
     if (fs.existsSync(LIVE_CFG_FILE))
       liveConfig = JSON.parse(fs.readFileSync(LIVE_CFG_FILE, 'utf8'));
-    // 如果配置里包含明文 apiSecret，自动加密并保存以便重启后可用
-    if (liveConfig.apiSecret && !liveConfig.encSecret) {
-      try {
-        liveConfig.encSecret = encryptSecret(liveConfig.apiSecret);
-        delete liveConfig.apiSecret;
-        liveConfig.hasKey = true;
-        saveLiveConfig();
-        console.log('[实盘] 检测到明文 apiSecret，已加密并保存');
-      } catch(e) { /* ignore */ }
-    }
     if (liveConfig.proxy) setProxy(liveConfig.proxy);
-    if (liveConfig.encSecret && !liveConfig.hasKey) liveConfig.hasKey = true;
     if (liveConfig.hasKey) console.log('[实盘] 已加载 API Key');
   } catch(e) {}
 }
@@ -263,26 +249,7 @@ function resetPaper() {
 // ═══════════════════════════════════════════════════════
 //  行情 REST（带 agent 参数，自动走代理）
 // ═══════════════════════════════════════════════════════
-const state = { tickers:{}, klineCache:{}, quoteNode:0, wsNode:0, tradeNode:0, mode:'paper', timeOffset:0 };
-
-// 同步币安服务器时间，用于修正本地时间戳偏差（返回的偏移为 serverTime - Date.now()）
-async function syncServerTime() {
-  for (let i = 0; i < TRADE_REST.length; i++) {
-    const host = TRADE_REST[i];
-    try {
-      const r = await httpsGet(host, '/api/v3/time', {}, 5000);
-      if (r && r.status === 200 && r.body && typeof r.body.serverTime === 'number') {
-        state.timeOffset = r.body.serverTime - Date.now();
-        state.tradeNode = i;
-        console.log('[时间] 已同步币安服务器时间，偏移(ms):', state.timeOffset);
-        return;
-      }
-    } catch (e) {
-      // 尝试下一个节点
-    }
-  }
-  console.warn('[时间] 无法同步币安服务器时间，保持本地时间');
-}
+const state = { tickers:{}, klineCache:{}, quoteNode:0, wsNode:0, tradeNode:0, mode:'paper' };
 
 function httpsGet(hostname, apiPath, headers={}, timeoutMs=15000) {
   return new Promise((resolve, reject) => {
@@ -296,9 +263,8 @@ function httpsGet(hostname, apiPath, headers={}, timeoutMs=15000) {
       const chunks=[];
       res.on('data',c=>chunks.push(Buffer.isBuffer(c)?c:Buffer.from(c)));
       res.on('end',()=>fin(()=>{
-        const raw = Buffer.concat(chunks).toString('utf8');
-        try{ resolve({status:res.statusCode, body:JSON.parse(raw)}); }
-        catch(e){ reject(new Error('JSON解析失败: '+raw.slice(0,300))); }
+        try{ resolve({status:res.statusCode, body:JSON.parse(Buffer.concat(chunks).toString('utf8'))}); }
+        catch(e){ reject(new Error('JSON解析失败')); }
       }));
       res.on('error',e=>fin(()=>reject(e)));
     });
@@ -322,9 +288,8 @@ function httpsPost(hostname, apiPath, body, headers={}, timeoutMs=15000) {
       const chunks=[];
       res.on('data',c=>chunks.push(Buffer.isBuffer(c)?c:Buffer.from(c)));
       res.on('end',()=>fin(()=>{
-        const raw = Buffer.concat(chunks).toString('utf8');
-        try{ resolve({status:res.statusCode, body:JSON.parse(raw)}); }
-        catch(e){ reject(new Error('JSON解析失败: '+raw.slice(0,300))); }
+        try{ resolve({status:res.statusCode, body:JSON.parse(Buffer.concat(chunks).toString('utf8'))}); }
+        catch(e){ reject(new Error('JSON解析失败')); }
       }));
       res.on('error',e=>fin(()=>reject(e)));
     });
@@ -348,9 +313,8 @@ function httpsDelete(hostname, apiPath, body, headers={}, timeoutMs=15000) {
       const chunks=[];
       res.on('data',c=>chunks.push(Buffer.isBuffer(c)?c:Buffer.from(c)));
       res.on('end',()=>fin(()=>{
-        const raw = Buffer.concat(chunks).toString('utf8');
-        try{ resolve({status:res.statusCode, body:JSON.parse(raw)}); }
-        catch(e){ reject(new Error('JSON解析失败: '+raw.slice(0,300))); }
+        try{ resolve({status:res.statusCode, body:JSON.parse(Buffer.concat(chunks).toString('utf8'))}); }
+        catch(e){ reject(new Error('JSON解析失败')); }
       }));
       res.on('error',e=>fin(()=>reject(e)));
     });
@@ -383,13 +347,11 @@ function sign(params, secret) {
   return qs + '&signature=' + crypto.createHmac('sha256', secret).update(qs).digest('hex');
 }
 
-async function liveRequest(method, apiPath, params={}, ms=15000, allowRetry=true) {
+async function liveRequest(method, apiPath, params={}, ms=15000) {
   const apiKey = getApiKey(), apiSecret = getApiSecret();
   if (!apiKey||!apiSecret) throw new Error('未配置 API Key');
 
-  // 使用与币安服务器同步后的时间戳，避免时间偏差错误
-  const ts = Date.now() + (state.timeOffset || 0);
-  const query = sign({ ...params, timestamp: ts, recvWindow:5000 }, apiSecret);
+  const query = sign({ ...params, timestamp:Date.now(), recvWindow:5000 }, apiSecret);
   const hdrs  = { 'X-MBX-APIKEY': apiKey, 'User-Agent':'CryptoTerminal/4.0' };
   const errors = [];
 
@@ -415,146 +377,14 @@ async function liveRequest(method, apiPath, params={}, ms=15000, allowRetry=true
       state.tradeNode = i;
       return d;
     } catch(e) {
-      // 如果是时间戳偏差错误，尝试同步服务器时间后重试一次
-      if (e.message && e.message.includes('时间戳') && allowRetry) {
-        console.warn('[实盘] 检测到时间戳偏差，尝试同步服务器时间并重试...');
-        try { await syncServerTime(); } catch (_) {}
-        return liveRequest(method, apiPath, params, ms, false);
-      }
       // 业务错误直接上抛
-      if (e.message && (e.message.includes('API Key')||e.message.includes('白名单')||e.message.includes('订单不存在'))) throw e;
+      if (e.message.includes('时间戳')||e.message.includes('API Key')||
+          e.message.includes('白名单')||e.message.includes('订单不存在')) throw e;
       errors.push(`${host}: ${e.code||e.message}`);
       console.warn(`[实盘] ${host} 失败:`, e.message);
     }
   }
   throw new Error('所有节点不可用 → ' + errors.join(' | '));
-}
-
-// ═══════════════════════════════════════════════════════
-//  合约(Futures) API（USDT-M）
-// ═══════════════════════════════════════════════════════
-async function futuresRequest(method, apiPath, params={}, ms=15000, allowRetry=true) {
-  const apiKey = getApiKey(), apiSecret = getApiSecret();
-  if (!apiKey||!apiSecret) throw new Error('未配置 API Key');
-  const ts = Date.now() + (state.timeOffset || 0);
-  const query = sign({ ...params, timestamp: ts, recvWindow:5000 }, apiSecret);
-  const hdrs  = { 'X-MBX-APIKEY': apiKey, 'User-Agent':'CryptoTerminal/4.0' };
-  const errors = [];
-
-  for (let i=0; i<FUTURE_REST.length; i++) {
-    const host = FUTURE_REST[i];
-    try {
-      let r;
-      if (method==='GET')    r = await httpsGet(host, `${apiPath}?${query}`, hdrs, ms);
-      else if(method==='POST')   r = await httpsPost(host, apiPath, query, hdrs, ms);
-      else if(method==='DELETE') r = await httpsDelete(host, apiPath, query, hdrs, ms);
-
-      const d = r.body;
-      if (r.status >= 400) {
-        const msg = d.msg || `HTTP ${r.status}`;
-        if (d.code < 0) throw new Error(`[${d.code}] ${msg}`);
-        errors.push(`${host}: HTTP${r.status}`); continue;
-      }
-      return d;
-    } catch(e) {
-      if (e.message && e.message.includes('时间戳') && allowRetry) {
-        console.warn('[合约] 检测到时间戳偏差，尝试同步服务器时间并重试...');
-        try { await syncServerTime(); } catch (_) {}
-        return futuresRequest(method, apiPath, params, ms, false);
-      }
-      errors.push(`${host}: ${e.code||e.message}`);
-      console.warn(`[合约] ${host} 失败:`, e.message);
-    }
-  }
-  throw new Error('所有合约节点不可用 → ' + errors.join(' | '));
-}
-
-async function testFuturesConn() {
-  // 使用 USDT-M 账户信息接口做连通性测试
-  const d = await futuresRequest('GET', '/fapi/v2/account');
-  return { canTrade: !!d.canTrade, positions: d.positions?.filter(p=>parseFloat(p.positionAmt)!==0)||[] };
-}
-
-async function getFuturesAccount() {
-  const acct = await futuresRequest('GET','/fapi/v2/account');
-  const bals = {};
-  // futures 返回的 balances 字段结构可能不同，这里尽量映射可用信息
-  if (Array.isArray(acct.assets)) acct.assets.forEach(a=>{ bals[a.asset]={walletBalance:parseFloat(a.walletBalance),unrealizedPnL:parseFloat(a.unrealizedPnL)}; });
-  const positions = (acct.positions||[]).filter(p=>parseFloat(p.positionAmt)!==0).map(p=>({symbol:p.symbol,positionAmt:parseFloat(p.positionAmt),entryPrice:parseFloat(p.entryPrice),unrealizedPnL:parseFloat(p.unrealizedProfit)}));
-  return {balances:bals,positions,totalMaintMargin:acct.totalMaintMargin||0};
-}
-
-async function futuresPlaceOrder(opts){
-  const {symbol,side,type,qty,price,quoteQty,reduceOnly,leverage,marginType,...rest} = opts || {};
-  // 先获取并校验交易对规则（避免面值/最小下单量/步长错误）
-  try {
-    const info = await httpsGet('api.binance.com', `/fapi/v1/exchangeInfo?symbol=${symbol}`);
-    if (info && info.status===200 && info.body && info.body.symbols && info.body.symbols.length){
-      const s = info.body.symbols[0];
-      const f = {};
-      (s.filters||[]).forEach(x=>{ f[x.filterType]=x; });
-      const minNotional = f.MIN_NOTIONAL ? parseFloat(f.MIN_NOTIONAL.minNotional) : (f.NOTIONAL?parseFloat(f.NOTIONAL.minNotional||f.NOTIONAL.minNotional):null);
-      if (minNotional) {
-        if (type==='MARKET' && side==='BUY'){
-          const q = parseFloat(quoteQty||qty||0);
-          if (q>0 && q < minNotional) throw new Error(`下单金额不足最小面值 (minNotional=${minNotional})`);
-          if (!q){
-            const p = state.tickers[symbol]?.price || 0;
-            const estNotional = p * (parseFloat(qty)||0);
-            if (estNotional && estNotional < minNotional) throw new Error(`估算下单面值 ${estNotional.toFixed(8)} 小于最小面值 ${minNotional}`);
-          }
-        } else {
-          const p = (type==='LIMIT' && price)?parseFloat(price):(state.tickers[symbol]?.price||0);
-          const estNotional = p * (parseFloat(qty)||0);
-          if (estNotional && estNotional < minNotional) throw new Error(`下单面值 ${estNotional.toFixed(8)} 小于最小面值 ${minNotional}`);
-        }
-      }
-      // LOT_SIZE 校验最小数量与步长
-      if (f.LOT_SIZE){
-        const minQty = parseFloat(f.LOT_SIZE.minQty);
-        const stepSize = parseFloat(f.LOT_SIZE.stepSize);
-        const qnum = parseFloat(type==='MARKET' && side==='BUY' ? (quoteQty||0) : qty) || 0;
-        if (qnum>0 && minQty && qnum < minQty) throw new Error(`下单数量 ${qnum} 小于最小数量 ${minQty}`);
-        if (qnum>0 && stepSize){
-          // 强制按 stepSize 对齐（向下取整）
-          const steps = Math.floor(qnum / stepSize);
-          const adj = +(steps * stepSize).toFixed(8);
-          if (adj<=0) throw new Error(`下单数量 ${qnum} 无法被步长 ${stepSize} 对齐`);
-        }
-      }
-    }
-  } catch(e){
-    console.warn('[合约] 交易规则获取失败，跳过校验:', e.message);
-  }
-
-  // 应用用户指定的 marginType（先）和 leverage（后），忽略错误仅记录日志
-  if (marginType){
-    try{ await futuresRequest('POST','/fapi/v1/marginType',{symbol,marginType});
-    }catch(e){ console.warn('[合约] 设置 marginType 失败:', e.message); }
-  }
-  if (typeof leverage!=='undefined' && leverage!==null && String(leverage)!==''){
-    try{ await futuresRequest('POST','/fapi/v1/leverage',{symbol,leverage});
-    }catch(e){ console.warn('[合约] 设置 leverage 失败:', e.message); }
-  }
-
-  const params = { symbol, side, type };
-  if (type==='MARKET'){
-    if (side==='BUY'){ params.quoteOrderQty = (quoteQty||qty||rest.quoteOrderQty); }
-    else params.quantity = qty || rest.quantity;
-  } else if (type==='LIMIT'){
-    params.quantity = qty || rest.quantity; params.price = price || rest.price; params.timeInForce = rest.timeInForce || 'GTC';
-  }
-  if (typeof reduceOnly!=='undefined') params.reduceOnly = reduceOnly;
-
-  // Forward commonly-used conditional/order params from client when present
-  const allowed = ['stopPrice','activationPrice','workingType','positionSide','closePosition','callbackRate','newClientOrderId','origClientOrderId','timeInForce','priceProtect'];
-  for (const k of allowed){ if (rest[k]!==undefined) params[k]=rest[k]; }
-
-  return futuresRequest('POST','/fapi/v1/order',params);
-}
-
-async function futuresCancelOrder(symbol,orderId){
-  return futuresRequest('DELETE','/fapi/v1/order',{symbol,orderId});
 }
 
 async function testLiveConn() {
@@ -592,37 +422,6 @@ async function getLiveAccount() {
 
 async function livePlaceOrder({symbol,side,type,qty,price,quoteQty,quoteOrderQty}) {
   const params={symbol,side,type};
-  // 先校验交易对最小面值（防止 [-1013] NOTIONAL 错误）
-  try {
-    const info = await httpsGet('api.binance.com', `/api/v3/exchangeInfo?symbol=${symbol}`);
-    if (info && info.status===200 && info.body && info.body.symbols && info.body.symbols.length){
-      const s = info.body.symbols[0];
-      const f = {};
-      (s.filters||[]).forEach(x=>{ f[x.filterType]=x; });
-      const minNotional = f.MIN_NOTIONAL ? parseFloat(f.MIN_NOTIONAL.minNotional) : null;
-      // 计算不论是以数量下单还是以报价下单，买单的面值
-      if (minNotional) {
-        if (type==='MARKET' && side==='BUY') {
-          const q = parseFloat(quoteOrderQty||quoteQty||0);
-          if (q>0 && q < minNotional) throw new Error(`下单金额不足最小面值 (minNotional=${minNotional})`);
-          // 如果没有以金额下单，尝试用估算价格计算面值
-          if (!q) {
-            const p = state.tickers[symbol]?.price || 0;
-            const estNotional = p * (parseFloat(qty)||0);
-            if (estNotional && estNotional < minNotional) throw new Error(`估算下单面值 ${estNotional.toFixed(8)} 小于最小面值 ${minNotional}`);
-          }
-        } else {
-          // SELL 或 LIMIT 等按数量/价格计算
-          const p = (type==='LIMIT' && price)?parseFloat(price):(state.tickers[symbol]?.price||0);
-          const estNotional = p * (parseFloat(qty)||0);
-          if (estNotional && estNotional < minNotional) throw new Error(`下单面值 ${estNotional.toFixed(8)} 小于最小面值 ${minNotional}`);
-        }
-      }
-    }
-  } catch(e) {
-    // 如果获取交易规则失败，不阻止下单，记录警告
-    console.warn('[实盘] 无法获取交易对规则，跳过最小面值校验:', e.message);
-  }
   if(type==='MARKET'){
     if(side==='BUY'){params.quoteOrderQty=(quoteOrderQty||quoteQty||qty);}
     else params.quantity=qty;
@@ -863,14 +662,6 @@ async function handleAPI(req,res,pn){
         return ok({connected:true,...(await testLiveConn())});
       }
 
-    // ── 原始账户信息（调试用） ──
-    } else if(pn==='/api/live/account_raw'&&req.method==='GET'){
-      // 返回币安 /api/v3/account 的原始响应，便于诊断 canTrade 等字段
-      try{
-        const data = await liveRequest('GET','/api/v3/account');
-        return ok({raw:data});
-      }catch(e){ throw e; }
-
     // ── 诊断 ──
     } else if(pn==='/api/live/diagnose'&&req.method==='GET'){
       const dns=require('dns').promises;
@@ -907,7 +698,7 @@ async function handleAPI(req,res,pn){
     // ── 模式切换 ──
     } else if(pn==='/api/mode'&&req.method==='POST'){
       const body=await readBody(req);
-      if((body.mode==='live' || body.mode==='futures') && !liveConfig.hasKey) throw new Error('请先配置 API Key');
+      if(body.mode==='live'&&!liveConfig.hasKey) throw new Error('请先配置 API Key');
       state.mode=body.mode;
       broadcast({type:'mode_change',mode:state.mode});
       return ok({mode:state.mode});
@@ -917,9 +708,6 @@ async function handleAPI(req,res,pn){
       if(state.mode==='live'){
         const acct=await getLiveAccount();
         return ok({...acct,mode:'live',initialUsdt:0});
-      } else if(state.mode==='futures'){
-        const acct = await getFuturesAccount();
-        return ok({...acct,mode:'futures'});
       } else {
         const eq=paperEquity(),pos=paperPositions();
         return ok({balances:paper.balances,openOrders:paper.openOrders,
@@ -934,8 +722,6 @@ async function handleAPI(req,res,pn){
       let order;
       if(state.mode==='live'){
         order=await livePlaceOrder(body);
-      } else if(state.mode==='futures'){
-        order=await futuresPlaceOrder(body);
       } else {
         order=paperPlaceOrder(body);
         broadcast({type:'account_update',mode:'paper',balances:paper.balances,
@@ -953,10 +739,6 @@ async function handleAPI(req,res,pn){
         const sym=body.symbol||activeSym;
         if(!sym) throw new Error('实盘撤单需提供 symbol');
         order=await liveCancelOrder(sym,oid);
-      } else if(state.mode==='futures'){
-        const sym=body.symbol||activeSym;
-        if(!sym) throw new Error('合约撤单需提供 symbol');
-        order=await futuresCancelOrder(sym,oid);
       } else {
         order=paperCancelOrder(oid);
         broadcast({type:'account_update',mode:'paper',balances:paper.balances,
@@ -1004,21 +786,6 @@ server.listen(PORT,()=>{
 ╚══════════════════════════════════════════╝
 `);
   loadPaper(); loadLiveConfig(); connectMain(); subSym('BTCUSDT','1m');
-  // 启动时尝试同步币安服务器时间，减少时间偏差问题
-  syncServerTime();
-  // 如果配置文件已有 API Key，自动测试并报告连接状态
-  if (liveConfig.hasKey) {
-    (async ()=>{
-      try {
-        const info = await testLiveConn();
-        console.log('[实盘] Spot 连接成功，可交易:', info.canTrade);
-      } catch(e){ console.warn('[实盘] Spot 连接测试失败:', e.message); }
-      try {
-        const finfo = await testFuturesConn();
-        console.log('[实盘] Futures 连接成功');
-      } catch(e){ console.warn('[实盘] Futures 连接测试失败:', e.message); }
-    })();
-  }
 });
 
 process.on('SIGINT',()=>{savePaper();server.close(()=>process.exit(0));});
